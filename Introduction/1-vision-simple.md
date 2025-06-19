@@ -21,7 +21,7 @@ Kafka Streams, c’est un programme qui peut lire ces flux en direct, les transf
 
 Il agit comme un robot intelligent qui regarde passer les événements et dit :
 
-    "Tiens, 3 commandes en une minute ! Je compte et j’envoie le total."
+    "Tiens voici 3 commandes en une minute ! Je compte et j’envoie le total."
 
 💬 Et ksqlDB, c’est quoi ?
 
