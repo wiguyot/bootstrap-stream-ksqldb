@@ -1,7 +1,7 @@
-version: '3.7'
 services:
   kafka:
-    image: bitnami/kafka:latest
+    image: bitnami/kafka:3.6.1
+    container_name: kafka
     ports:
       - "9092:9092"
     environment:
@@ -13,28 +13,61 @@ services:
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_LOG_DIRS: /tmp/kraft-combined-logs
       ALLOW_PLAINTEXT_LISTENER: yes
+    networks:
+      - default
 
   ksqldb:
-    image: confluentinc/ksqldb-server:0.29.0
+    build:
+      context: .
+      dockerfile: Dockerfile.ksqldb
+    container_name: ksqldb
     ports:
       - "8088:8088"
     environment:
       KSQL_BOOTSTRAP_SERVERS: kafka:9092
-      KSQL_KSQL_SERVICE_ID: my_ksql_service
+      KSQL_KSQL_SERVICE_ID: ks1
+      KSQL_OPTS: "-Dconfluent.support.metrics.enable=false"
     depends_on:
       - kafka
+    networks:
+      - default
+
+
 
   cli:
     image: confluentinc/ksqldb-cli:0.29.0
+    container_name: cli
     entrypoint: /bin/sh
     tty: true
     depends_on:
       - ksqldb
+    networks:
+      - default
+
 
   producer:
     build:
       context: ./producer
+    container_name: producer
     depends_on:
       - kafka
+    networks:
+      - default
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:3.31.0
+    container_name: kafdrop
+    ports:
+      - "9000:9000"
     environment:
-      - PYTHONUNBUFFERED=1
+      KAFKA_BROKERCONNECT: kafka:9092
+      SERVER_PORT: 9000
+    depends_on:
+      - kafka
+    networks:
+      - default
+
+
+networks:
+  default:
+    name: bootstrap-net

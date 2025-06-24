@@ -1,0 +1,8 @@
+FROM confluentinc/ksqldb-server:0.29.0
+
+ENV JAVA_TOOL_OPTIONS="-Dcom.sun.management.jmxremote=false \
+  -Dcom.sun.management.jmxremote.port=0 \
+  -Dcom.sun.management.jmxremote.authenticate=false \
+  -Dcom.sun.management.jmxremote.ssl=false"
+
+# Important: ne surtout pas redéfinir CMD ou ENTRYPOINT
