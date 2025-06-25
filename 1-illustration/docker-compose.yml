@@ -71,15 +71,15 @@ services:
       - bootstrap-net
 
 
-  ksqldb-cli:
-    image: confluentinc/ksqldb-cli:0.29.0
-    container_name: ksqldb-cli
-    entrypoint: /bin/sh
-    tty: true
-    depends_on:
-      - ksqldb-server
-    networks:
-      - bootstrap-net
+  # ksqldb-cli:
+  #   image: confluentinc/ksqldb-cli:0.27.2
+  #   container_name: ksqldb-cli
+  #   entrypoint: /bin/sh
+  #   tty: true
+  #   depends_on:
+  #     - ksqldb-server
+  #   networks:
+  #     - bootstrap-net
 
   producer:
     build:
@@ -87,8 +87,11 @@ services:
     container_name: producer
     depends_on:
       - redpanda
+    environment:
+      BOOTSTRAP_SERVERS: redpanda:9092
     networks:
       - bootstrap-net
+
 
 networks:
   bootstrap-net:
