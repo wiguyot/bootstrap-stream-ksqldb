@@ -2,34 +2,27 @@ version: "3.8"
 
 services:
 
-  redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v24.1.6
-    container_name: redpanda
-    command:
-      - redpanda
-      - start
-      - --overprovisioned
-      - --smp=1
-      - --memory=1G
-      - --reserve-memory=0M
-      - --node-id=0
-      - --check=false
-      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
-      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+  kafka:
+    image: confluentinc/cp-server:7.6.1
+    container_name: kafka
     ports:
       - "9092:9092"
-    networks:
-      - bootstrap-net
-
-  redpanda-console:
-    image: docker.redpanda.com/redpandadata/console:v2.4.7
-    container_name: redpanda-console
-    ports:
-      - "8080:8080"
+      - "9093:9093"
     environment:
-      KAFKA_BROKERS: redpanda:9092
-    depends_on:
-      - redpanda
+      CLUSTER_ID: "vm6HDLoeTsWQvJ8C38VsNQ"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: "1"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     networks:
       - bootstrap-net
 
@@ -39,7 +32,7 @@ services:
     ports:
       - "9021:9021"
     environment:
-      CONTROL_CENTER_BOOTSTRAP_SERVERS: "redpanda:9092"
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: "kafka:9092"
       CONTROL_CENTER_CONNECT_CLUSTER: ""
       CONTROL_CENTER_KSQL_URL: "http://ksqldb-server:8088"
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: ""
@@ -49,7 +42,7 @@ services:
       CONFLUENT_METRICS_TOPIC_REPLICATION: 1
       PORT: 9021
     depends_on:
-      - redpanda
+      - kafka
       - ksqldb-server
     networks:
       - bootstrap-net
@@ -60,38 +53,27 @@ services:
     ports:
       - "8088:8088"
     environment:
-      KSQL_BOOTSTRAP_SERVERS: redpanda:9092
-      KSQL_LISTENERS: http://0.0.0.0:8088
-      KSQL_KSQL_SERVICE_ID: ksql_redpanda
+      KSQL_BOOTSTRAP_SERVERS: "kafka:9092"
+      KSQL_LISTENERS: "http://0.0.0.0:8088"
+      KSQL_KSQL_SERVICE_ID: "ksql_kraft"
       KSQL_JMX_OPTS: "-Dcom.sun.management.jmxremote.local.only=true"
       JAVA_TOOL_OPTIONS: "-XX:-UsePerfData"
     depends_on:
-      - redpanda
+      - kafka
     networks:
       - bootstrap-net
-
-
-  # ksqldb-cli:
-  #   image: confluentinc/ksqldb-cli:0.27.2
-  #   container_name: ksqldb-cli
-  #   entrypoint: /bin/sh
-  #   tty: true
-  #   depends_on:
-  #     - ksqldb-server
-  #   networks:
-  #     - bootstrap-net
 
   producer:
     build:
       context: ./producer
     container_name: producer
     depends_on:
-      - redpanda
-    environment:
-      BOOTSTRAP_SERVERS: redpanda:9092
+      - kafka
     networks:
       - bootstrap-net
 
+volumes:
+  kafka_data:
 
 networks:
   bootstrap-net:

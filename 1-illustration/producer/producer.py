@@ -6,10 +6,10 @@ from confluent_kafka import Producer
 
 villes = ["Paris", "Lyon", "Toulouse", "Marseille"]
 
-#producer = Producer({'bootstrap.servers': 'kafka:9092'})
-producer = Producer({
-    'bootstrap.servers': os.getenv('BOOTSTRAP_SERVERS', 'redpanda:9092')
-})
+producer = Producer({'bootstrap.servers': 'kafka:9092'})
+# producer = Producer({
+#     'bootstrap.servers': os.getenv('BOOTSTRAP_SERVERS', 'redpanda:9092')
+# })
 
 def generer_commande():
     return {
