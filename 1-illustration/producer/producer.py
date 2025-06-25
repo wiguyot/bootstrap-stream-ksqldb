@@ -6,7 +6,7 @@ from confluent_kafka import Producer
 
 villes = ["Paris", "Lyon", "Toulouse", "Marseille"]
 
-producer = Producer({'bootstrap.servers': 'kafka:9092'})
+producer = Producer({'bootstrap.servers': 'kafka-1:9092,kafka-2:9092,kafka-3:9092'})
 # producer = Producer({
 #     'bootstrap.servers': os.getenv('BOOTSTRAP_SERVERS', 'redpanda:9092')
 # })

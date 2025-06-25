@@ -1,10 +1,9 @@
-version: "3.8"
-
 services:
 
-  kafka:
+  # Broker KRaft cluster with 3 nodes (Confluent Platform 7.6.1)
+  kafka-1:
     image: confluentinc/cp-server:7.6.1
-    container_name: kafka
+    container_name: kafka-1
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -12,17 +11,96 @@ services:
       CLUSTER_ID: "vm6HDLoeTsWQvJ8C38VsNQ"
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_NODE_ID: "1"
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
       KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-1:9092"
       KAFKA_NUM_PARTITIONS: "1"
-      KAFKA_DEFAULT_REPLICATION_FACTOR: "1"
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      # Metrics interceptors
+      KAFKA_CFG_CONFLUENT_SUPPORT_METRICS_ENABLE: "true"
+      KAFKA_CFG_CONFLUENT_SUPPORT_METRICS_SEGMENT_ENDPOINT: "https://analytics-api.confluent.io"
+      KAFKA_CFG_CONFLUENT_SUPPORT_METRICS_SEGMENT_ID: "MORqDG61F2eE5mfxAXVqpEblmFG18nbv"
+      KAFKA_CFG_CONFLUENT_SUPPORT_METRICS_TOPIC_NAME: "_confluent-metrics"
+      KAFKA_CFG_CONFLUENT_SUPPORT_METRICS_TOPIC_PARTITIONS: "3"
+      KAFKA_CFG_CONFLUENT_SUPPORT_METRICS_TOPIC_REPLICATION: "3"
+      KAFKA_CFG_CONFLUENT_MONITORING_INTERCEPTOR_TOPIC_NAME: "_confluent-monitoring"
+      KAFKA_CFG_CONFLUENT_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: "3"
+      KAFKA_CFG_CONFLUENT_MONITORING_INTERCEPTOR_TOPIC_REPLICATION: "3"
+      KAFKA_CFG_CONFLUENT_MONITORING_INTERCEPTOR_TOPIC_RETENTION_MS: "259200000"
+      KAFKA_CFG_CONFLUENT_MONITORING_INTERCEPTOR_TOPIC_SKIP_BACKLOG_MINUTES: "15"
+      KAFKA_CFG_CONFLUENT_MONITORING_INTERCEPTOR_TOPIC_CONFIG_VALIDATE: "false"
+    volumes:
+      - kafka1_data:/var/lib/kafka/data
+    networks:
+      - bootstrap-net
+
+  kafka-2:
+    image: confluentinc/cp-server:7.6.1
+    container_name: kafka-2
+    ports:
+      - "9094:9092"
+      - "9095:9093"
+    environment:
+      CLUSTER_ID: "vm6HDLoeTsWQvJ8C38VsNQ"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: "2"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-2:9092"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
       KAFKA_LOG_DIRS: "/var/lib/kafka/data"
     volumes:
-      - kafka_data:/var/lib/kafka/data
+      - kafka2_data:/var/lib/kafka/data
+    networks:
+      - bootstrap-net
+
+  kafka-3:
+    image: confluentinc/cp-server:7.6.1
+    container_name: kafka-3
+    ports:
+      - "9096:9092"
+      - "9097:9093"
+    environment:
+      CLUSTER_ID: "vm6HDLoeTsWQvJ8C38VsNQ"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: "3"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-3:9092"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+    volumes:
+      - kafka3_data:/var/lib/kafka/data
+    networks:
+      - bootstrap-net
+
+  # Schema Registry for Control Center
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://kafka-1:9092,kafka-2:9092,kafka-3:9092"
+      SCHEMA_REGISTRY_KAFKASTORE_CLUSTER_ID: "vm6HDLoeTsWQvJ8C38VsNQ"
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
     networks:
       - bootstrap-net
 
@@ -32,17 +110,24 @@ services:
     ports:
       - "9021:9021"
     environment:
-      CONTROL_CENTER_BOOTSTRAP_SERVERS: "kafka:9092"
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
       CONTROL_CENTER_CONNECT_CLUSTER: ""
       CONTROL_CENTER_KSQL_URL: "http://ksqldb-server:8088"
-      CONTROL_CENTER_SCHEMA_REGISTRY_URL: ""
-      CONTROL_CENTER_REPLICATION_FACTOR: 1
-      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
-      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
-      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      CONTROL_CENTER_REPLICATION_FACTOR: 3
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 3
+      CONTROL_CENTER_INTERNAL_TOPICS_REPLICATION: 3
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 3
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_REPLICATION: 3
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 3
       PORT: 9021
+      # JVM options to allow reflective opens for Retrofit warnings
+      JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
     depends_on:
-      - kafka
+      - kafka-1
+      - kafka-2
+      - kafka-3
+      - schema-registry
       - ksqldb-server
     networks:
       - bootstrap-net
@@ -53,13 +138,15 @@ services:
     ports:
       - "8088:8088"
     environment:
-      KSQL_BOOTSTRAP_SERVERS: "kafka:9092"
+      KSQL_BOOTSTRAP_SERVERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
       KSQL_LISTENERS: "http://0.0.0.0:8088"
       KSQL_KSQL_SERVICE_ID: "ksql_kraft"
       KSQL_JMX_OPTS: "-Dcom.sun.management.jmxremote.local.only=true"
       JAVA_TOOL_OPTIONS: "-XX:-UsePerfData"
     depends_on:
-      - kafka
+      - kafka-1
+      - kafka-2
+      - kafka-3
     networks:
       - bootstrap-net
 
@@ -68,12 +155,16 @@ services:
       context: ./producer
     container_name: producer
     depends_on:
-      - kafka
+      - kafka-1
+      - kafka-2
+      - kafka-3
     networks:
       - bootstrap-net
 
 volumes:
-  kafka_data:
+  kafka1_data:
+  kafka2_data:
+  kafka3_data:
 
 networks:
   bootstrap-net:
