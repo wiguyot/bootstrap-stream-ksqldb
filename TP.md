@@ -31,42 +31,84 @@ curl -s "$KSQLDB_URL/info" | jq .
 curl -s "$KSQLDB_URL/healthcheck"
 ```
 
+Les éléments attendus sont de l'ordre de : 
+
+```yaml
+prompt : curl -s "$KSQLDB_URL/info" | jq .
+
+{
+  "KsqlServerInfo": {
+    "version": "0.27.2",
+    "kafkaClusterId": "une certaine valeur aléatoire",
+    "ksqlServiceId": "ksql_kraft",
+    "serverStatus": "RUNNING"
+  }
+}
+
+prompt : curl -s "$KSQLDB_URL/healthcheck"
+
+{"isHealthy":true,"details":{"metastore":{"isHealthy":true},"kafka":{"isHealthy":true},"commandRunner":{"isHealthy":true}}}%  
+```
+
 ---
 
 ## 1) Création du topic source + envoi de données de test
 
-Crée le topic `temperatures` (4 partitions par exemple) **si ta stack ne le crée pas déjà** :
+Crée le topic `temperatures` (4 partitions par exemple) :
 
 ```bash
 # Avec kafka-topics (dans un conteneur Kafka si nécessaire)
-kafka-topics --bootstrap-server "$BROKER" --create --topic temperatures --partitions 4 --replication-factor 1
+docker exec -i kafka-1 \
+  kafka-topics --bootstrap-server "$BROKER" \
+  --create --topic temperatures --partitions 4 --replication-factor 1 --if-not-exists
 ```
 
-Publie des événements JSON (clé = ville, valeur = {ville, t, ts}) :
+- Ecris la commande qui va bien pour vérifier le bon fonctionnement de la commande précédente.
+
+- Publie des événements JSON (clé = ville, valeur = {ville, t, ts}) :
 
 ```bash
-# Option A - kafka-console-producer (clé via parse.key)
-python - <<'PY' | kafka-console-producer \
-  --bootstrap-server "$BROKER" \
-  --topic temperatures \
-  --property parse.key=true \
-  --property key.separator=:
+# Option - kafka-console-producer (clé via parse.key)
+bash -lc 'python3 - <<'"'"'PY'"'"' | docker exec -i kafka-1 \
+  kafka-console-producer --bootstrap-server '"$BROKER"' \
+  --topic temperatures --property parse.key=true --property key.separator=:
 import json,random,time,sys
-villes = ["Clermont-Ferrand","Lyon","Paris","Bordeaux","Nantes"]
-for _ in range(200):
-    v = random.choice(villes)
-    rec = {"ville": v, "t": round(random.uniform(5,35),1), "ts": int(time.time()*1000)}
-    print(f"{v}:{json.dumps(rec)}")
-    sys.stdout.flush()
-    time.sleep(0.2)
-PY
+villes=["Clermont-Ferrand","Lyon","Paris","Bordeaux","Nantes"]
+for _ in range(100):
+    v=random.choice(villes)
+    rec={"ville":v,"t":round(random.uniform(5,35),1),"ts":int(time.time()*1000)}
+    print(f"{v}:{json.dumps(rec)}"); sys.stdout.flush(); time.sleep(0.2)
+PY'
 ```
+
+- Ouvrez un navigateur sur l'URL du control-center et montrez le remplissage du topic **temperatures**. Montrez la répartition des messages au travers des partitions. 
 
 Contrôle rapide du topic :
 
 ```bash
-kafka-topics --bootstrap-server "$BROKER" --describe --topic temperatures
+docker exec -i kafka-1 \
+  kafka-topics --bootstrap-server "$BROKER" --describe --topic temperatures
 ```
+
+- Maintenant changez légèrement le code python précédent par 
+
+```bash
+# Option - kafka-console-producer (clé via parse.key)
+bash -lc 'python3 - <<'"'"'PY'"'"' | docker exec -i kafka-1 \
+  kafka-console-producer --bootstrap-server '"$BROKER"' \
+  --topic temperatures --property parse.key=true --property key.separator=:
+import json,random,time,sys
+villes=["Clermont-Ferrand","Lyon","Paris","Bordeaux","Montpellier"]
+for _ in range(200):
+    v=random.choice(villes)
+    rec={"ville":v,"t":round(random.uniform(5,35),1),"ts":int(time.time()*1000)}
+    print(f"{v}:{json.dumps(rec)}"); sys.stdout.flush(); time.sleep(0.2)
+PY'
+```
+
+Qu'observez vous sur la répartition des messages ? 
+
+Intéressez vous à la fonction de hachage Murmur2. Quel est son lien avec notre affaire ? 
 
 ---
 
