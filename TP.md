@@ -317,7 +317,9 @@ Mettez en oeuvre le HOPPING tel que décrit ci-dessus. Montrez l'évolution de l
 
 ---
 
-## 12) Pour aller plus loin (exercices)
+## 12) Petit projet pour aller plus loin
+
+Crée une table par HOPPING sur 10 minutes qui avance par pas de 2 minutes. Cette table
 
 1. Ajoute une **détection d’anomalies** : `WHERE t NOT BETWEEN -30 AND 55`.
 2. Calcule un **z‑score** par ville sur une fenêtre glissante et alerte si `|z| > 3`.
