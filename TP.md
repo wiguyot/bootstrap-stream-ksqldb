@@ -3,9 +3,11 @@
 Ce TP fait pratiquer **les fondamentaux de ksqlDB** : création de streams/tables, clés et (re)partitionnement, fenêtres (tumbling/hopping), agrégations, **PUSH vs PULL queries**, **JOIN** stream‑table, introspection et nettoyage.  
 Exemple fil rouge : un flux de températures par ville publié dans Kafka (`temperatures`).
 
+Le matériel pédagogique du TP est dans le répertoire 1-illustration
+
 ---
 
-## Prérequis et points d’accès
+## 0) Prérequis et points d’accès
 
 - Concepts : 
 
