@@ -1,17 +1,28 @@
 # TP — Traitement de flux avec ksqlDB (pas à pas, pédagogique)
 
-Ce TP te fait pratiquer **les fondamentaux de ksqlDB** : création de streams/tables, clés et (re)partitionnement, fenêtres (tumbling/hopping), agrégations, **PUSH vs PULL queries**, **JOIN** stream‑table, introspection et nettoyage.  
+Ce TP fait pratiquer **les fondamentaux de ksqlDB** : création de streams/tables, clés et (re)partitionnement, fenêtres (tumbling/hopping), agrégations, **PUSH vs PULL queries**, **JOIN** stream‑table, introspection et nettoyage.  
 Exemple fil rouge : un flux de températures par ville publié dans Kafka (`temperatures`).
 
 ---
 
-## 0) Prérequis et points d’accès
+## Prérequis et points d’accès
 
-- **Docker + Docker Compose** opérationnels.
-- Un **cluster Kafka** et **ksqlDB** démarrés par ta stack (ports typiques : Kafka `9092`, ksqlDB REST `8088`).  
-  > Adapte les hôtes/ports ci‑dessous à **ta** stack (noms de services Compose, etc.).
+- Concepts : 
 
-Définis deux variables d’environnement (macOS/Linux) pour fluidifier les commandes :
+**ksqlDB** — Base de données orientée flux au-dessus de Kafka : on écrit des requêtes SQL pour transformer des topics en streams et tables, faire des jointures, des fenêtres et exposer des résultats (push/pull). Pensé pour créer des applis de stream processing sans coder en Java. 
+
+**Stream (ksqlDB)** — Collection partitionnée, immuable et append-only représentant une suite d’événements (les faits historiques d’un topic). On n’édite jamais un événement ; on en ajoute de nouveaux.
+
+**Flow (Control Center)** — Vue graphique de ksqlDB dans Confluent Control Center qui montre le topologie de traitement : sources, streams/tables, requêtes persistantes et leurs liens, pour suivre le passage des messages et déboguer. 
+
+**Table (ksqlDB, dans les streams)** — Collection mutable et matérialisée qui modèle l’état “courant” par clé (ex. dernière valeur par ville). Elle sert aux agrégations/jointures et peut être interrogée en PULL comme une vue matérialisée. 
+
+- Outils
+
+  - **Docker + Docker Compose** opérationnels.
+  - Un **cluster Kafka** et **ksqlDB** démarrés par la stack (ports typiques : Kafka `9092`, ksqlDB REST `8088`).  
+
+  Définis deux variables d’environnement (macOS/Linux) pour fluidifier les commandes :
 
 ```bash
 export BROKER="<host:port Kafka>"
@@ -23,7 +34,7 @@ export KSQLDB_URL="http://<host:port ksqldb>"
 # export KSQLDB_URL="http://ksqldb:8088"
 ```
 
-Vérifie que ksqlDB répond :
+  On vérifie que ksqlDB répond :
 
 ```bash
 curl -s "$KSQLDB_URL/info" | jq .
@@ -31,7 +42,7 @@ curl -s "$KSQLDB_URL/info" | jq .
 curl -s "$KSQLDB_URL/healthcheck"
 ```
 
-Les éléments attendus sont de l'ordre de : 
+  Les éléments attendus sont de l'ordre de : 
 
 ```yaml
 prompt : curl -s "$KSQLDB_URL/info" | jq .
@@ -65,16 +76,16 @@ docker exec -i kafka-1 \
 
 - Ecris la commande qui va bien pour vérifier le bon fonctionnement de la commande précédente.
 
-- Publie des événements JSON (clé = ville, valeur = {ville, t, ts}) :
+- Le script bash/python suivant va servir à publier des messages sur le topic de travail. On va le réutiliser systématiquement dès qu'on va se proposer d'observer quelque chose. Il publie 100 messages. Il est simple de modifier cette limite afin de satisfaire le besoin d'un contexte particulier. Les messages publiés sont les éléments suivants (clé = ville, valeur = {ville, t, ts}) :
 
-```bash
+```python
 # Option - kafka-console-producer (clé via parse.key)
 bash -lc 'python3 - <<'"'"'PY'"'"' | docker exec -i kafka-1 \
   kafka-console-producer --bootstrap-server '"$BROKER"' \
   --topic temperatures --property parse.key=true --property key.separator=:
 import json,random,time,sys
 villes=["Clermont-Ferrand","Lyon","Paris","Bordeaux","Nantes"]
-for _ in range(100):
+for _ in range(200):
     v=random.choice(villes)
     rec={"ville":v,"t":round(random.uniform(5,35),1),"ts":int(time.time()*1000)}
     print(f"{v}:{json.dumps(rec)}"); sys.stdout.flush(); time.sleep(0.2)
@@ -92,7 +103,7 @@ docker exec -i kafka-1 \
 
 - Maintenant changez légèrement le code python précédent par 
 
-```bash
+```python
 # Option - kafka-console-producer (clé via parse.key)
 bash -lc 'python3 - <<'"'"'PY'"'"' | docker exec -i kafka-1 \
   kafka-console-producer --bootstrap-server '"$BROKER"' \
@@ -114,7 +125,7 @@ Intéressez vous à la fonction de hachage Murmur2. Quel est son lien avec notre
 
 ## 2) Se connecter à ksqlDB
 
-Trois options (au choix) :
+Trois options possibles :
 
 - **CLI intégré** :
   ```bash
