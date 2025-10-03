@@ -30,10 +30,10 @@ Le matériel pédagogique du TP est dans le répertoire 1-illustration
 export BROKER="<host:port Kafka>"
 
 # Exemple si tu es dans un réseau Docker compose :
-# export BROKER="kafka-1:9092"
+# export BROKER="votre_adresse_IP:9092"
 export KSQLDB_URL="http://<host:port ksqldb>"
 # Exemple :
-# export KSQLDB_URL="http://ksqldb:8088"
+# export KSQLDB_URL="http://votre_adresse_IP:8088"
 ```
 
   On vérifie que ksqlDB répond :
